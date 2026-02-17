@@ -40,6 +40,17 @@ data_trimmed <- data |>
   filter(var_007 <= 2 * stdev + avg) |> 
   as.data.frame()
 
+
+
+## trim data: 
+### for each subject and each mood condition, 
+### exclude data points that are smaller/greater than 2 SDs from the mean 
+data_trimmed_1 <- data |> 
+  group_by(vp_id, var_001) |> 
+  mutate(avg = mean(var_007), stdev = sd(var_007)) |> 
+  
+  as.data.frame()
+
 ###########
 ## model ##
 ###########
@@ -68,7 +79,7 @@ save(xmdl, xmdl_red, model_comp,
 ##########
 
 # plot mean phoneme/second as a function of gender and mood
-Figure <- data |> 
+Figure_1 <- data_trimmed_1 |> 
   group_by(var_001, vp_003) |> 
   summarise(mean = mean(var_007)) |> 
   ggplot(aes(x = var_001, y = mean, colour = vp_003, group = vp_003)) +
@@ -92,3 +103,28 @@ ggsave(filename = "../plots/Figure.png",
        height = 100,
        units = "mm",
        dpi = 300)
+
+
+
+#figure not on data trimmed
+
+
+# plot mean phoneme/second as a function of gender and mood
+Figure <- data |> 
+  group_by(var_001, vp_003) |> 
+  summarise(mean = mean(var_007)) |> 
+  ggplot(aes(x = var_001, y = mean, colour = vp_003, group = vp_003)) +
+  geom_point(pch = 15, size = 3) +
+  geom_line(lty = c(1,1,2,2)) +
+  scale_colour_manual("snt",
+                      guide = guide_legend(title = "Subject sex"),
+                      values = c("#0072B2", "#D55E00")) +
+  scale_y_continuous(expand = c(0, 0), breaks = (c(6.8,7,7.2,7.4,7.6)), limits = c(6.8,7.6)) +
+  labs(title = "Speech rate is influenced by mood and gender\n",
+       y = "Phonemes per second\n",
+       x = "\nMood") +
+  theme_minimal() +
+  theme(legend.position = "right",
+        axis.line = element_blank())
+
+Figure
