@@ -133,6 +133,12 @@ anova(null_incomplete, m_incomplete)
 # m_incomplete significantly improves model fit 
 
 
+# Interpetation of the model output
+# fixed effect of correct_voicing is positive and significant (β = 0.52, SE = 0.17, z = 3.08, p = 0.002)
+# fikelihood ratio test (model full v null): Chisq = 8.18, p = 0.00
+# listeners select the correct voicing category significantly more than what expected under the null hypothesis
+
+
 ```
 
 ### (C) Plot predictions
@@ -145,6 +151,29 @@ Estimating variance components for linear mixed effects models is mathematically
 #| label: plot_prediction_in
 
 # YOUR CODE HERE
+
+# Model predictions 
+predict_m_incomplete <- predict_response(m_incomplete, terms = "correct_voicing")
+# as df
+predict.df <- as.data.frame(predict_m_incomplete)
+predict.df
+
+#graph effect
+p_voicing <- ggplot(predict.df, aes(x = x, y = predicted)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                width = 0.15, linewidth = 0.3) +
+  coord_cartesian(ylim = c(0, 1)) +
+  xlab("Correct voicing") +
+  ylab("Predicted probability of choosing voiceless") +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  ) +
+  ggtitle("(B) Model predictions with 95% CI")
+p_voicing
+
 
 ```
 
