@@ -142,6 +142,23 @@ Now based on your exploration, specify priors. Remember what the two coefficient
 my_priors <- c(prior(normal(78, 40), class = 'Intercept'),
               prior(normal(20, 10), class = 'b'),
               prior(normal(0, 10), class = 'sigma'))
+
+
+
+#TR
+              # rough mean, rough SD 
+my_priors <- c(prior(normal(107,50), class = 'intercept'),
+               # assumption no difference between mean of SEM and DIFF, and SD can be wide-ish/same as other 
+               priod(normal(0,50), class= 'b', coef = 'SemSimilar'))
+
+#model only three parameters: predictor, intercept, sigma (residual varience)
+
+
+
+
+
+
+
   
 ```
 
