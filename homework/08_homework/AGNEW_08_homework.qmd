@@ -172,6 +172,8 @@ Now interpret the model relative to the research question and describe uncertain
 
 #YOUR CODE HERE
 
+#RQs semantic similarity affect dist? phonological similarity affect dist? interaction?
+
 # Plot the model with cred ints
 # visualise posteriors
 xmdl_sim_sqrt |> 
@@ -186,14 +188,18 @@ xmdl_sim_sqrt |>
 
 # posterior probabilities of direction
 p_direction(xmdl_sim_sqrt)
+#Sem1 99.48% strong ev positive 
+#Phon1 96.05%
+#Sem1:Phon1 66.45% mmmmmmm
 
 # Bayes factors against zero
 # (Savage-Dickey density ratio) 
 bf_parameters(xmdl_sim_sqrt, null = 0)
+# semantic sim BF= 1.68 (anecdotal ev against null)
+# phon sim BF= 0.205 (evidence in favour of null)
+# interaction BF = 0.045 (strong ev in favour of null)
 
 ```
-
-![](http://127.0.0.1:29903/chunk_output/9CA9D99Da6b043d0/D267EB3A/cvgh7m46x2ake/000006.png)
 
 ## (g) Write up your entire analysis:
 
