@@ -205,6 +205,18 @@ bf_parameters(xmdl_sim_sqrt, null = 0)
 
 YOUR WRITE UP HERE
 
+This analysis investigates the effect of semantic similarity, phonological similarity, and their interaction, on how close participants place cities on a map. Distance between locations was modelled using a Bayesian linear regression. Predictors were contrast-coded predictors. Weakly informative priors were specified based on physical constraints of the map task.
+
+**Posterior checks**
+
+The posterior predictive check of the initial Gaussian model showed a mismatch with the right-skew of the data.
+
+To improve model fit, a square-root transformation was performed on the distance variable. The posterior predictive checks of the subsequent model showed good agreement between observed and simulated data.
+
+The posterior distribution for semantic similarity indicated a positive effect, with the 95% credible interval excluding zero.
+
+In contrast, phonological similarity and the interaction both had credible intervals overlapping zero, indicating no clear evidence for these effects.
+
 ## OPTIONAL (h) compare your interpretation to the original findings
 
 YOUR COMPARISON HERE
