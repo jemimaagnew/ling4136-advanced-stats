@@ -1,0 +1,518 @@
+---
+title: "session09 - exercises"
+format: html
+editor: visual
+date: 2025-07-17
+author: Jemima Agnew
+execute:
+  error: false
+  warning: false
+  message: false
+  cache: false
+bibliography: ../resources/bibliography.bib
+---
+
+# Preamble: Loading packages and configuration
+
+```{r}
+#| label: data_and_libraries
+#| echo: false
+
+# just run this code chunk
+# function to ignoring the setting of the relative path below when knitting
+run_if_not_knitting <- function(expr) {
+  if (!isTRUE(getOption("knitr.in.progress"))) {
+    eval(expr)
+  }
+}
+
+# nifty code using the pacman package
+# it checks if the packages specified below are installed, if not, they will be installed, if yes, they will be loaded
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(MASS, rstudioapi, tidyverse, tidybayes, brms, bayesrules)
+
+# set the current working directory to the one where this file is
+run_if_not_knitting(current_working_dir <- dirname(rstudioapi::getActiveDocumentContext()$path))
+run_if_not_knitting(setwd(current_working_dir))
+
+```
+
+# Introduction
+
+The main **learning goals** of this week's practical parts are:
+
+-   getting an intuition about the gap between verbal hypotheses and formal hypotheses
+
+# The data
+
+In this dataset, we will be analyzing data from @kilpatrick2023random:
+
+In a nutshell, the authors were interested in whether there is a relationship between the form of a word and its meaning by looking at Japanese Pokemon names.
+
+Let's have a look at the data:
+
+```{r}
+#| label: data
+
+# Load in the dataset and already remove irrelevant stuff:
+pokemon <- read_csv("../data/Japanese_Pokemon_simplified.csv") |>
+  dplyr::select(-`Sum of values`, -Checksum)
+
+# check data set:
+pokemon
+
+```
+
+What you see here are the following variables:
+
+Variables:
+
+`Designation`: source of Pokemon name. Official = the official names of Japanese Pokemon; Elicited = elicited names from naive participants.
+
+(`pokemonname`: Pokemon name in Japanese) removed in simplified data file
+
+`Output`: Pokemon name in transcribed form
+
+`Length`: Amount of phones in name
+
+`Evolution`: Evolution stage of Pokemons: 1 = pre-evolution; 2 = post-evolution, NA = do not evolve
+
+`f` = amount of /f/ sounds in name
+
+`T` = amount of /T/ sounds in name
+
+...
+
+and many more different sounds.
+
+Now imagine researchers want to use this data set to *test* the following hypothesis:
+
+*The evolution stage of a Pokemon is reflected in aspects of its Japanese name*
+
+# Exercise
+
+## A: Preregister your analysis
+
+Take the hypothesis and what you know about the data set and its structure to predict a very specific relationship that you can test. You are allowed to look at the dataset, but do not look at concrete relationships that might be a manifestation of the hypothesis.
+
+```{r}
+
+# The given hypothesis: "The evolution stage of a Pokemon is reflected in aspects of its Japanese name"
+      # "Japanese name" 
+      # Designation: "Official = the official names of Japanese Pokemon; Elicited = elicited names from naive participants" 
+            # I am assuming that the 'naive participants' are Japanese, - and so elicited tokens also classify as 'Japanese names'....? 
+# under this assumption, I will test the elicited 'japense' names data 
+
+# The data 
+  # Evolution: three levels (pre/evo/post)
+      # note... only two levels for elicited data (pre/post)
+  # Length: data range 1-20
+  # Segmental info - dont think I'll use this for now... 
+
+
+#MY HYPOTHESIS 
+
+# Evolutionary stage effects length of name
+# specifically
+# For elicited Japanese Pokemon names, pre-evolution names will be shorter (measured as length of name by total number of letters) than post-evolution elicited names
+
+#model formula 
+elicited_formula <- bf(Length ~ Evolution)
+
+
+
+
+
+
+
+```
+
+## B: Run your preregistered analysis
+
+Run the preregistered analysis made in (A) above and interpret your results relative to the hypothesis.
+
+```{r}
+
+# DATA set up 
+
+# change evolution stage 'NA' to 0
+pokemon <- pokemon %>%
+  mutate(Evolution = replace_na(Evolution, 0))
+
+#elicited only 
+elicited <- subset(pokemon, Designation == 'Elicited')
+
+# evolution as factor / 2 levels 
+elicited <- mutate(elicited, Evolution = as.factor(Evolution))
+
+
+# MODEL 
+
+#model formula 
+elicited_formula <- bf(Length ~ Evolution)
+
+# contrast code
+contrasts(elicited$Evolution) <- contr.sum(2)
+
+
+
+# PRIORS 
+
+# what priors need to be set
+get_prior(elicited_formula, elicited)
+
+# length (1-20)
+# evolution (1: pre 2: post)
+
+# super diffuse priors
+my_priors <- c(prior(normal(0,5), class = 'Intercept'),
+               prior(normal(0,2), class = 'b', coef = 'Evolution1'),
+               prior(normal(0,2), class = 'sigma'))
+
+#BRM MODEL 
+
+# brm model 
+xmdl_elicited <- brm(Length ~ Evolution,
+          family = gaussian(),
+          prior = my_priors,
+          data = elicited,
+          seed = 67)
+
+# posterior check 
+
+pp_check(xmdl_elicited, ndraws = 50)
+
+# GRAPH 
+# We do a little wrangling to get it into a nice shape
+xmdl_elicited |> 
+  # first extract the samples
+  spread_draws(b_Intercept, b_Evolution1) |> 
+  # Create two columns that represent the two categories
+  mutate('1' = b_Intercept,
+         '2' = b_Intercept + b_Evolution1) |> 
+  # and then bring into a long format like the data
+  dplyr::select('1', '2') |> #added dplyr:: because something weird was going on with select function after loading MASS 
+  pivot_longer(everything(), names_to = "Evolution", values_to = "Length") |> 
+  # plot
+  ggplot(aes(x = Length, fill = Evolution)) +
+    geom_density() +
+    facet_wrap(Evolution~., ncol = 1)
+
+# Model outputs 
+xmdl_elicited
+
+# So this does...  NOT SUPPORT THE HYPOTHESIS
+# negative estimates
+# Pre evolution elicited names are LONGER than post evolution names 
+
+```
+
+## C: Show contradicting results
+
+Now explore the data and find two alternative way to test the research hypothesis that yield convincing results that go in opposite directions based of your findings in (A). Justify all your choices verbally after the fact.
+
+```{r}
+
+# Just having a quick look at the data 
+
+
+# evolution as factor 
+pokemon <- mutate(pokemon, Evolution = as.factor(Evolution))
+
+# graph data denisity 
+pokemon %>%
+  ggplot( aes(x=Length, group=Evolution, fill=Evolution)) +
+    geom_density(alpha=.4) +
+    facet_wrap(~ Designation)
+
+
+# quick graph length (not a pretty graph i know, but it does what it needs to do)
+ggplot(pokemon, aes(x = Evolution, y = Length)) +
+  geom_point()+  
+  facet_wrap(~ Designation)
+
+# i reckon i can contrast code an effect in the 'official' data for one alternative 
+
+
+
+
+#second alternative 
+# Staying with length as the "aspects of its Japanese name" - I think maybe length could be more vowels specifically.. ;) maybe an 'effect' there 
+
+# Data processing 
+
+# sum the values from the vowel columns (y, a, i, u, e, o) into new a "vowel length" measure 'Length_vowels', and remaining letters to consonant column 'Length_C'
+pokemon <- pokemon %>%
+  mutate(Length_vowels = rowSums(across(c(y, a, i, u, e, o)), na.rm = TRUE),
+          Length_C = Length - Length_vowels)
+
+# plot lenegth as vowels 
+ggplot(pokemon, aes(x = Evolution, y = Length_vowels)) +
+  geom_point()+  
+  facet_wrap(~ Designation)
+
+# graph - number of vowels 
+
+pokemon %>%
+  ggplot( aes(x=Length_vowels, group=Evolution, fill=Evolution)) +
+    geom_density(alpha=.4) +
+    facet_wrap(~ Designation)
+
+pokemon %>%
+  ggplot(aes(x = Evolution, y = Length_vowels)) +
+  geom_point()+  
+  facet_wrap(~ Designation)
+# for elicited names, larger number of vowels for post evolution vs pre evolution 
+
+# graph - number of consonants   
+pokemon %>%
+  ggplot( aes(x=Length_C, group=Evolution, fill=Evolution)) +
+    geom_density(alpha=.4) +
+    facet_wrap(~ Designation)
+
+pokemon %>%
+  ggplot(aes(x = Evolution, y = Length_C)) +
+  geom_point()+  
+  facet_wrap(~ Designation)
+```
+
+**My strategies**
+
+Looking at the data, I think there are a lot of ways I could cut it to get a an effect in the opposite direction.
+
+**Alternative 1:** Official names - length (WORKED)
+
+For the official pokemon names, there is a lot of overlap between evolution levels, but I think I can use some different contrast coding to get the desired effect (conts.dif compare adjacdent levels so step by step) . So I predict that for official japanese Pokemon names, evolution stage affects the length of the name. Pre-evolution pokemon names will be shorter than evolved Pokemon. Post-evolution pokemon names will be longer than evolved Pokemon names.
+
+```{r}
+
+#model formula 
+official_formula <- bf(Length ~ Evolution)
+
+#DATA 
+# change evolution stage 'NA' to 0
+pokemon <- pokemon %>%
+  mutate(Evolution = replace_na(Evolution, 0))
+
+# official only 
+official <- subset(pokemon, !Designation == 'Elicited')
+
+# evolution as factor / 3 ordered levels 
+official <- mutate(official, Evolution = as.factor(Evolution))
+official$Evolution <- ordered(official$Evolution, levels = c("1","0", "2"))
+
+#contrast code ~ successive differences (added MASS library up the top)
+contrasts(official$Evolution) = contr.sdif(3)
+    # so i dont test pre-post directly, just pre-evo and evo-post
+
+#MODEL 
+
+#model formula 
+official_formula <- bf(Length ~ Evolution)
+
+# what priors need to be set  
+get_prior(official_formula, official)
+
+# length (1-20)
+# evolution (1: pre, 2: post, 0: evo/mid)
+
+# super diffuse priors
+official_priors <- c(prior(normal(10,10), class = 'Intercept'),
+               prior(normal(0,5), class = 'b', coef = 'Evolution2M1'),
+               prior(normal(0,5), class = 'b', coef = 'Evolution3M2'),
+               prior(normal(0,5), class = 'sigma'))
+
+#brm model 
+xmdl_official <- brm(Length ~ Evolution,
+          family = gaussian(),
+          prior = official_priors,
+          data = official,
+          seed = 67)
+
+#model
+xmdl_official
+
+# posterior check 
+pp_check(xmdl_official, ndraws = 50)
+
+# from the model 
+  # Evolution2M1 (pre-evo) 0.56
+  # Evolution3M2 (evo-post) 0.34
+      #WOWO WHAT A. HUGE EFFECT hehehe thi s is crazzzy 
+# positive ~ so increase in length with evolution stage
+# larger pre-evo than evo-post ~ so **obviously** more of the length effect is found early evolutionary stage, going from pre-evo
+  # Therefore as per the hypothesis
+        # evolution stage of a pokemon predicts length of official japanese name ;) 
+        # length increases in a stepwise fashion across the three evolution stages with all contrasts showing positive effect
+        # pre-evolution pokemon have a shorter name compared to evolved (mid stage or no more evolutionary forms)
+        # evolved pokemon habe shorter names compared to post-evolution pokemon 
+
+```
+
+**Alternative 2:** Vowel length (Did not work as intended)
+
+I think I can find an effect length for the elicited name and evolution (as per my original analysis) when looking at number of vowels.
+
+```{r}
+
+# Alternative 2 
+
+
+# new hypothesis 
+#model formula 
+vowels_formula <- bf(Length_vowels ~ Evolution)
+
+
+#DATA
+
+#elicited only 
+elicited <- subset(pokemon, Designation == 'Elicited')
+
+# evolution as factor / 2 levels (because was picking up 3 levels from earlier even though only two options in this df)
+elicited <- mutate(elicited, Evolution = as.factor(Evolution))
+elicited$Evolution <- ordered(elicited$Evolution, levels = c("1", "2"))
+
+
+#MODEL 
+
+#model formula 
+vowels_formula <- bf(Length_vowels ~ Evolution)
+
+# contrast code
+contrasts(elicited$Evolution) <- contr.sum(2)
+
+
+# brm model 
+xmdl_vowels <- brm(Length_vowels ~ Evolution,
+          family = gaussian(),
+          prior = my_priors,
+          data = elicited,
+          seed = 67)
+
+xmdl_vowels
+#whoops not the desired direction 
+
+#GRAPH data
+
+xmdl_vowels |> 
+  # first extract the samples
+  spread_draws(b_Intercept, b_Evolution1) |> 
+  # Create two columns that represent the two categories
+  mutate(`Pre-evolution`  = b_Intercept,
+         `Post-evolution` = b_Intercept + b_Evolution1 ) |> 
+    # and then bring into a long format like the data
+  pivot_longer(c(`Pre-evolution`, `Post-evolution`), names_to = "Evolution", values_to = "Length_vowels") |> 
+  # plot
+  ggplot(aes(x = Length_vowels, fill = Evolution)) +
+  geom_density(alpha = 0.7) +
+  facet_wrap(Evolution ~ ., ncol = 1) 
+
+#whoops didnt work as desired
+```
+
+**Alternative 3:** Same data/model as original except different contrast coding - now treatment instead of sum coding (WORKED)
+
+So I'm back to the same as my oringinal model/ hypothesis but using a different contrast coding method (like I did in alternative 1). For elicited Japanese Pokemon names, pre-evolution names will be shorter (measured as length of name by total number of letters) than post-evolution elicited names. This time contrast coded as treatment coding (diff from ref group not mean).
+
+```{r}
+
+#Alternative 3 - original model, different contrast coding 
+
+# MODEL 
+
+#model formula 
+elicited_formula <- bf(Length ~ Evolution)
+
+# contrast code
+contrasts(elicited$Evolution) <- contr.treatment(2)
+
+# PRIORS 
+
+# length (1-20)
+# evolution (1: pre 2: post)
+
+#get priors for this contrast coding
+get_prior(elicited_formula, elicited)
+
+
+# super diffuse priors
+my_priors_treat <- c(prior(normal(0,5), class = 'Intercept'),
+               prior(normal(0,2), class = 'b', coef = 'Evolution2'),
+               prior(normal(0,2), class = 'sigma'))
+
+#BRM MODEL 
+
+# brm model 
+xmdl_elicited_treat <- brm(Length ~ Evolution,
+          family = gaussian(),
+          prior = my_priors_treat,
+          data = elicited,
+          seed = 67)
+
+xmdl_elicited_treat
+
+# posterior check 
+
+pp_check(xmdl_elicited_treat, ndraws = 50)
+
+# GRAPH 
+
+#data 
+xmdl_elicited_treat |> 
+  spread_draws(b_Intercept, b_Evolution2) |> 
+  mutate('1' = b_Intercept,
+         '2' = b_Intercept + b_Evolution2) |> 
+  dplyr::select('1', '2') |> #added dplyr:: because something weird was going on with select function after loading MASS 
+  pivot_longer(everything(), names_to = "Evolution", values_to = "Length") |> 
+  # plot graph
+  ggplot(aes(x = Length, fill = Evolution)) +
+    geom_density() +
+    facet_wrap(Evolution~., ncol = 1)
+
+
+# this DOES SUPPORT THE HYPOTHESIS
+# shows opposite effect of original model even though EVERYTHING IS THE SAME EXCEPT CONTRAST CODING 
+# Post evolution elicited names are 1.51 phones LONGER than pre evolution names 
+```
+
+## D: Researcher degrees of freedom
+
+Note down all dimensions of researcher degrees of freedom that make the mapping of the hypothesis onto your data analysis vague. How many possible combinations can you think of?
+
+*Now imagine researchers want to use this data set to test the following hypothesis: The evolution stage of a Pokemon is reflected in aspects of its Japanese name*
+
+Some dimensions of researcher degrees of freedom include:
+
+1.  how you define the hypothesis / how do you define variables to be measured? - Vague
+    -   "evolution stage" - how is this coded and treated? Two vs three categories? Ordered factor? What contrasts between levels? Are we comparing the levels to the mean or to a treatment level or each successive level?
+
+    -   "aspects of its Japanese name" - which aspects? There are multiple features coded in the data (e.g. length and phones) + other measures that can be derived (e.g. no. of vowels). Is this meant to be one aspect/feature of the name or are we looking at multiple ('aspects' written plural form)
+2.  what data to included? - missing information
+    -   Data includes both elicited and official names. - Are both to be used in the analysis? Are you comparing the two or are they to be looked at seperately? If comparing, it is unclear if they even are comparable... for elicited data, is this one participant with many tokens? or many tokens with a number of participants elicitations. How many participants? how many trials? does each elicit entry represent a different item, or are there repeated items with multiple participant elicitations.... one participant with many elicitations? There are three levels of Evolution for Official names but only 2 for elicited names.
+
+    -   What classifies as "Japanese name" in the data? - Official names are explicitly "japanese' but the elicitation data does not explicitely say these are tokens from Japanese speakers. - I made an assumption that they are Japanese because I wanted to use them, but this assumption could be incorrect.
+
+    -   For the 'Phone' segment information it is not completely transparent as to the mapping of letters to different sounds (e.g. s vs S - what are the IPA equivalents). Can we group phones together to consitute different "aspects" of the name (e.g. group fricatives together)? How would we compare between these groups of feratures? Could I say e.g. post-evolvution pokemon names have more fricatives compared to 1. pre-evolution pokemon, or 2. plosives? both are somewhat reasonable given the original hypothesis.
+
+    -   Did you look at the data before you decided which factors to include in your analysis? there are many different features coded in this data.
+3.  how to analyse the data? what models / codings to use?
+    -   What type of model to use.
+
+    -   How do you treat the contrasts between variable levels - this was a big one for my data - I was able to change the dirrection of my models findings by changing nothing but the contrast coding.
+
+    -   Are you looking at multiple factors or just one? The relationship between factors?
+
+    -   Are you controlling for specific variables and/or including random effect structures?
+4.  How do use assess the outcomes?
+    -   how do you decide what is a significant effect? What evidence / thresholds do you use to support your claim?
+
+    -   What is a meaningful difference for your outcome? In one of my models there is a length difference (in the direction I wanted) of 0.34 phones. What does a difference of 0.34 phones actually mean in the real world. (Maybe if I was writing the Pokemon names with a pencil I could erase 1/3 of a letter. lol)
+
+All of these dimensions constitute (I dont want to count, so I will be dramatic and say) infinite different pathways from the original hypothsis: "*The evolution stage of a Pokemon is reflected in aspects of its Japanese name"* to different interpretations and findings.
+
+# References
+
+<!-- References will auto-populate in the refs div below -->
+
+::: {#refs}
+:::
