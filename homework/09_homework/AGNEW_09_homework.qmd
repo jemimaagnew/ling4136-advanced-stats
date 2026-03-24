@@ -55,7 +55,7 @@ Let's have a look at the data:
 #| label: data
 
 # Load in the dataset and already remove irrelevant stuff:
-pokemon <- read_csv("../data/Japanese_Pokemon_simplified.csv") |>
+pokemon <- read_csv("../../data/Japanese_Pokemon_simplified.csv") |>
   dplyr::select(-`Sum of values`, -Checksum)
 
 # check data set:
